@@ -16,6 +16,8 @@ using Newtonsoft.Json;
 public class TokenSigner
     {
     private readonly string DllLibPath = "eps2003csp11.dll";
+    private readonly string DllLibPath2 = "D:\\g\\EInvoicingSigner\\EInvoicing\\EInvoicing\\eps2003csp11.dll";
+
     private string TokenPin = "999999999";
     private string TokenCertificate = "Egypt Trust Sealing CA";
 
@@ -53,8 +55,10 @@ public class TokenSigner
             }
             else
             {
+
                 String cades = "";
                 String SourceDocumentJson = File.ReadAllText(args[0] + @"\SourceDocumentJson.json");
+
                 JObject request = JsonConvert.DeserializeObject<JObject>(SourceDocumentJson, new JsonSerializerSettings()
                 {
                     FloatFormatHandling = FloatFormatHandling.String,
@@ -63,19 +67,29 @@ public class TokenSigner
                     DateParseHandling = DateParseHandling.None
                 });
 
+
+                Console.WriteLine("request");
+                Console.WriteLine(request);
+
                 //Start serialize
                 String canonicalString = tokenSigner.Serialize(request);
-                File.WriteAllBytes(args[0] + @"\CanonicalString.txt", System.Text.Encoding.UTF8.GetBytes(canonicalString));
-                // retrieve cades
-                if (request["documentTypeVersion"].Value<string>() == "0.9")
+                Console.WriteLine("canonicalString");
+                Console.WriteLine(canonicalString);
+                File.WriteAllBytes(args[0] + @"\CanonicalString.txt", Encoding.UTF8.GetBytes(canonicalString));
+                // retrieve cades(signature)
+                //if (request["documentTypeVersion"].Value<string>() == "0.9")
+                if (request["documentTypeVersion"].Value<string>() == "1")
+
                 {
-                    cades = "ANY";
+                        cades = "ANY";
                 }
                 else
                 {
+                    Console.WriteLine("before sign start");
+
                     cades = tokenSigner.SignWithCMS(canonicalString);
                 }
-                File.WriteAllBytes(args[0] + @"\Cades.txt", System.Text.Encoding.UTF8.GetBytes(cades));
+                File.WriteAllBytes(args[0] + @"\Cades.txt", Encoding.UTF8.GetBytes(cades));
                 JObject signaturesObject = new JObject(
                                        new JProperty("signatureType", "I"),
                                        new JProperty("value", cades));
@@ -83,7 +97,7 @@ public class TokenSigner
                 signaturesArray.Add(signaturesObject);
                 request.Add("signatures", signaturesArray);
                 String fullSignedDocument = "{\"documents\":[" + request.ToString() + "]}";
-                File.WriteAllBytes(args[0] + @"\FullSignedDocument.json", System.Text.Encoding.UTF8.GetBytes(fullSignedDocument));
+                File.WriteAllBytes(args[0] + @"\FullSignedDocument.json", Encoding.UTF8.GetBytes(fullSignedDocument));
             }
         }
     }
@@ -103,22 +117,29 @@ public class TokenSigner
             using (SHA256 sha = SHA256.Create())
             {
                 var output = sha.ComputeHash(input);
+                Console.WriteLine(output);
                 return output;
             }
         }
         public string SignWithCMS(String serializedJson)
         {
             byte[] data = Encoding.UTF8.GetBytes(serializedJson);
+            Console.WriteLine("got the data");
+
             Pkcs11InteropFactories factories = new Pkcs11InteropFactories();
+            Console.WriteLine("after factories");
+            Console.WriteLine(File.Exists(DllLibPath) ? "File exists." : "File does not exist.");
             using (IPkcs11Library pkcs11Library = factories.Pkcs11LibraryFactory.LoadPkcs11Library(factories, DllLibPath, AppType.MultiThreaded))
             {
+                Console.WriteLine("after access the dll file to read the connecting devices");
                 ISlot slot = pkcs11Library.GetSlotList(SlotsType.WithTokenPresent).FirstOrDefault();
-
+                Console.WriteLine(slot);
                 if (slot is null)
                 {
+                    Console.WriteLine("Signed with text  No Slot Found ");
                     return "No slots found";
                 }
-
+                Console.WriteLine("after if return");
                 ITokenInfo tokenInfo = slot.GetTokenInfo();
 
                 ISlotInfo slotInfo = slot.GetSlotInfo();
@@ -183,6 +204,8 @@ public class TokenSigner
                     cms.ComputeSignature(signer);
 
                     var output = cms.Encode();
+                    Console.WriteLine("output");
+                    Console.WriteLine(output);
 
                     return Convert.ToBase64String(output);
                 }

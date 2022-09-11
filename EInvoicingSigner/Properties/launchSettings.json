@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EInvoicingSigner": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\g\\EInvoicingSigner\\EInvoicing\\EInvoicing\\\r\n999999\r\n\"Egypt Trust Sealing CA\""
+    }
+  }
+}
